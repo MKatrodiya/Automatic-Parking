@@ -55,6 +55,8 @@ for _ in range(10):
     #   acceleration: positive to speed up, negative to slow down
     #   steering: negative to steer left, positive to steer right (in radians)
 
+    # Car moves left or right relative to its current heading. 
+    # Current heading is determined by the cosine and sine of the heading angle.
     # Example: Move left with acceleration
     # action = [1, -0.5]  # accelerate and steer left
 
@@ -64,7 +66,7 @@ for _ in range(10):
     print("Action:", action)
     obs, reward, done, truncated, info = env.step(action)
     env.render()
-    time.sleep(2)
+    time.sleep(2) # Pause for a few seconds to visualize the action effect
 env.close()
 
 # plt.imshow(env.render())
