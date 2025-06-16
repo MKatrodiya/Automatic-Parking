@@ -17,14 +17,21 @@ PARKED_CARS = 0
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 COLLISION_PENALTY = -10
-REWARD_WEIGHTS = [100, 100, 0, 0, 0, 0]
+REWARD_WEIGHTS = [100, 100, 0.001,0.001,0.001,0.001]
 
 # Environment Parameters
 config = {
+    "observation": {
+        "type": "KinematicsGoal",
+        "features": ["x", "y", "vx", "vy", "cos_h", "sin_h"],
+        "scales": REWARD_WEIGHTS,
+        "normalize": True,
+    },
     'other_vehicles_type': 'parked',
     'screen_width': SCREEN_WIDTH,
     'screen_height': SCREEN_HEIGHT,
     'vehicles_count': PARKED_CARS,
+    # 'reward_weights': REWARD_WEIGHTS
 }
 
 
@@ -32,17 +39,17 @@ if __name__ == "__main__":
     n_cpu = 8
     batch_size = 64
     n_steps = batch_size * 30
-    timestamps = 100000
+    timesteps = 1000000
     
     #env = gym.make("parking-v0")
 
     if TRAIN:
         env = make_vec_env("parking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
-                learning_rate=5e-3, n_epochs=10, gamma=0.8)
+                learning_rate=1e-3, n_epochs=20, gamma=0.8)
     
         # Train the model
-        model.learn(total_timesteps=timestamps)
+        model.learn(total_timesteps=timesteps)
         model.save("parking_policy/model")
         del model
 
