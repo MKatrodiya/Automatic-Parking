@@ -1,0 +1,70 @@
+import gymnasium as gym
+from gymnasium.wrappers import RecordVideo
+import highway_env
+from highway_env.envs import ParkingEnv
+import torch
+
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
+
+
+# Training parameters
+TRAIN = False
+
+# Environment Parameters
+PARKED_CARS = 0
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+COLLISION_PENALTY = -10
+REWARD_WEIGHTS = [100, 100, 0, 0, 0, 0]
+
+# Environment Parameters
+config = {
+    'other_vehicles_type': 'parked',
+    'screen_width': SCREEN_WIDTH,
+    'screen_height': SCREEN_HEIGHT,
+    'vehicles_count': PARKED_CARS,
+}
+
+
+if __name__ == "__main__":
+    n_cpu = 8
+    batch_size = 64
+    n_steps = batch_size * 30
+    timestamps = 100000
+    
+    #env = gym.make("parking-v0")
+
+    if TRAIN:
+        env = make_vec_env("parking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
+        model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
+                learning_rate=5e-3, n_epochs=10, gamma=0.8)
+    
+        # Train the model
+        model.learn(total_timesteps=timestamps)
+        model.save("parking_policy/model")
+        del model
+
+    else:
+        env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
+        # Load the trained model
+        rm = "rgb_array"
+        model = PPO.load("parking_policy/model")
+        env = gym.make("parking-v0", config=config, render_mode=rm)
+        env.reset()
+        env.render()
+
+
+        
+        while True:
+            obs, info= env.reset()
+            done = False
+            total_reward = 0
+            while not done:
+                action, _states = model.predict(obs)
+                obs, reward, terminated, truncated, info = env.step(action)
+                done = terminated
+                total_reward += reward
+                print(f"Total Reward: {reward}")
+                env.render()
