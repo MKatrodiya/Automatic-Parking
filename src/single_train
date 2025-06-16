@@ -10,14 +10,14 @@ from stable_baselines3.common.env_util import make_vec_env
 
 
 # Training parameters
-TRAIN = False
+TRAIN = True
 
 # Environment Parameters
 PARKED_CARS = 0
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 COLLISION_PENALTY = -10
-REWARD_WEIGHTS = [100, 100, 0.001,0.001,0.001,0.001]
+REWARD_WEIGHTS = [100, 100, 5,5,1,1]
 
 # Environment Parameters
 config = {
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     n_cpu = 8
     batch_size = 64
     n_steps = batch_size * 30
-    timesteps = 1000000
+    timesteps = 2000000
     
     #env = gym.make("parking-v0")
 
