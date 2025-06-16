@@ -2,15 +2,19 @@ import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 import highway_env
 from highway_env.envs import ParkingEnv
-import torch
+import imageio
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
+import datetime
 
 
-# Training parameters
-TRAIN = True
+# Training and recording parameters
+TRAIN = False
+RECORD = True
+RECORD_LIMIT = 100 # Frames to record in the video
+EPISODE_RECORD_LIMIT = 1
 
 # Environment Parameters
 PARKED_CARS = 0
@@ -54,24 +58,35 @@ if __name__ == "__main__":
         del model
 
     else:
-        env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
+        # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
+        
         # Load the trained model
         rm = "rgb_array"
         model = PPO.load("parking_policy/model")
         env = gym.make("parking-v0", config=config, render_mode=rm)
+
         env.reset()
         env.render()
-
-
-        
-        while True:
+        frames = []
+        gif_filename = f"parking_run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.gif"
+        t = 0
+        e = 0
+        while True and t < RECORD_LIMIT and e < EPISODE_RECORD_LIMIT:
+            e += 1
             obs, info= env.reset()
             done = False
             total_reward = 0
-            while not done:
+            
+            while not done and t < RECORD_LIMIT:
+                t += 1
                 action, _states = model.predict(obs)
                 obs, reward, terminated, truncated, info = env.step(action)
                 done = terminated
-                total_reward += reward
-                print(f"Total Reward: {reward}")
-                env.render()
+                # print(f"Total Reward: {reward}")
+                print(f"Step: {t}, Total Reward: {reward}")
+                frame = env.render()
+                if RECORD:
+                    frames.append(frame)
+        if RECORD:
+            imageio.mimsave(gif_filename, frames, fps=30)
+            print(f"GIF saved to {gif_filename}")
