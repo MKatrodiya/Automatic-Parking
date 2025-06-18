@@ -3,6 +3,7 @@ from gymnasium.wrappers import RecordVideo
 import highway_env
 from highway_env.envs import ParkingEnv
 import imageio
+import parking_obstacles
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
@@ -22,18 +23,14 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 COLLISION_PENALTY = -10
 REWARD_WEIGHTS = [100, 100, 5,5,1,1]
-ACTION_FREQUENCY = 3 #(Hz) How many times per second an action is taken
+ACTION_FREQUENCY = 15 #(Hz) How many times per second an action is taken
 SIMULATION_FREQUENCY = 15 #(Hz) How many times per second the simulation is updated, for physics and rendering
+
+
 
 
 # Environment Parameters
 config = {
-    "observation": {
-        "type": "KinematicsGoal",
-        "features": ["x", "y", "vx", "vy", "cos_h", "sin_h"],
-        "scales": REWARD_WEIGHTS,
-        "normalize": True,
-    },
     'other_vehicles_type': 'parked',
     'screen_width': SCREEN_WIDTH,
     'screen_height': SCREEN_HEIGHT,
@@ -44,16 +41,17 @@ config = {
 }
 
 
+
 if __name__ == "__main__":
     n_cpu = 8
     batch_size = 64
     n_steps = batch_size * 30
-    timesteps = 2000000
+    timesteps = 10000
     
     #env = gym.make("parking-v0")
 
     if TRAIN:
-        env = make_vec_env("parking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
+        env = make_vec_env("customparking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
                 learning_rate=1e-3, n_epochs=5, gamma=0.95, device="cpu", ent_coef=0.05)
     
@@ -66,9 +64,10 @@ if __name__ == "__main__":
         # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
         
         # Load the trained model
+        parking_obstacles.register_env()
         rm = "rgb_array"
-        model = PPO.load("parking_policy/model")
-        env = gym.make("parking-v0", config=config, render_mode=rm)
+        model = PPO.load("parking_policy/model4")
+        env = gym.make("customparking-v0", config=config, render_mode=rm)
         print(model.policy)
 
         env.reset()
@@ -94,5 +93,5 @@ if __name__ == "__main__":
                 if RECORD:
                     frames.append(frame)
         if RECORD:
-            imageio.mimsave(gif_filename, frames, fps=30)
+            imageio.mimsave(gif_filename, frames, fps=20)
             print(f"GIF saved to {gif_filename}")
