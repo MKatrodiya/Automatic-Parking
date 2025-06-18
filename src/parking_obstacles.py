@@ -7,8 +7,9 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import Env
 
-from highway_env.envs.common.observation import ObservationType
+from highway_env.envs.common.observation import KinematicsGoalObservation
 from highway_env.envs.parking_env import ParkingEnv
+from highway_env.envs.common.action import Action, ActionType, action_factory
 
 class CustomParkingEnv(ParkingEnv):
     """
@@ -16,35 +17,36 @@ class CustomParkingEnv(ParkingEnv):
     """
     def __init__(self, config=None, render_mode: str | None = None) :
         super().__init__(config, render_mode=render_mode)
-        # self.observation_space = KinematicsWithParkedObs().space()
 
 
-class KinematicsWithParkedObs(ObservationType):
+    def define_spaces(self):
+        super().define_spaces()
+        print("Defining spaces for CustomParkingEnv")
+        self.observation_type = KinematicsWithParkedObs(self)
+        #self.action_type = action_factory(self, self.config["action"])
+        #self.observation_space = self.observation_type.space()
+        #self.action_space = self.action_type.space()
+
+class KinematicsWithParkedObs(KinematicsGoalObservation):
+    def __init__(self, env: Env, **kwargs: dict):
+        scales = [100, 100, 5, 5, 1, 1]
+        super().__init__(env, scales, **kwargs)
+
     def space(self):
-        num_parked = 10
-        obs_dim = 6 + 2 * num_parked
-        low = np.array([-1e3] * obs_dim)
-        high = np.array([1e3] * obs_dim)
-        return self.np_random.uniform(low=low, high=high).shape
+        super_space = super().space()
+        return super_space
+        # 5 for ego, 5*4 for nearby vehicles, 5*3 for parked vehicles (example: 3 parked)
+        # Adjust the number of parked vehicles as needed
+        num_parked = len(getattr(self.env, "parked_vehicles", []))
+        
+        obs_dim = 5 + 5 * self.env.config["vehicles_count"] + 5 * num_parked
+        return gym.spaces.Box(low=-1e3, high=1e3, shape=(obs_dim,), dtype=np.float32)
 
     def observe(self):
-        ego = self.env.controlled_vehicles[0]
-        obs = [ego.position[0], ego.position[1],
-               ego.velocity[0], ego.velocity[1],
-               np.cos(ego.heading), np.sin(ego.heading)]
-
-        parked = [v for v in self.env.road.vehicles if v not in self.env.controlled_vehicles]
-        for v in parked[:10]:
-            obs += [v.position[0], v.position[1]]
-        while len(obs) < 6 + 2 * 10:
-            obs += [0.0, 0.0]
-
-        return {
-            "observation": np.array(obs, dtype=np.float32),
-            "desired_goal": ego.goal.position if ego.goal else np.zeros(2),
-            "achieved_goal": np.array(ego.position, dtype=np.float32)
-        }
-    
+        obs = super().observe()
+        vs = [(vehicle.position[0], vehicle.position[1]) for vehicle in getattr(self.env.road, "vehicles", [])]
+        obs["parked_vehicles"] = np.array(vs, dtype=np.float32)
+        return obs
 
 def register_env():
     import gymnasium as gym
@@ -57,7 +59,14 @@ def register_env():
 
 if __name__ == "__main__":
     register_env()
-    env = gym.make("customparking-v0", render_mode='rgb_array')
+    config = {
+        'other_vehicles_type': 'parked',
+        'vehicles_count': 4,
+        'policy_frequency': 5,
+        'simulation_frequency': 15,
+        # 'reward_weights': REWARD_WEIGHTS
+    }
+    env = gym.make("customparking-v0", render_mode='rgb_array', config=config)
     obs, info = env.reset()
     print("Observation space:", env.observation_space)
     print("Action space:", env.action_space)
