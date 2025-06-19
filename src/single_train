@@ -10,6 +10,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 import datetime
 import csv
+import os
 
 
 # Training and recording parameters
@@ -63,6 +64,7 @@ if __name__ == "__main__":
                 tensorboard_log=f"logs/parking_policy/{timestamp}/")
         
         # Save the config to a CSV file
+        os.makedirs(f"logs/parking_policy/{timestamp}", exist_ok=True)
         with open(f"logs/parking_policy/{timestamp}/params.csv", "w") as f:
             writer = csv.writer(f)
             writer.writerows(config.items())
