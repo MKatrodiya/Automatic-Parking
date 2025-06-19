@@ -1,0 +1,102 @@
+import gymnasium as gym
+from gymnasium.wrappers import RecordVideo
+import highway_env
+from highway_env.envs import ParkingEnv
+import imageio
+
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
+import datetime
+
+
+# Training and recording parameters
+TRAIN = False
+RECORD = True
+RECORD_LIMIT = 100 # Frames to record in the video
+EPISODE_RECORD_LIMIT = 10
+
+# Environment Parameters
+PARKED_CARS = 5
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+COLLISION_PENALTY = -10
+REWARD_WEIGHTS = [100, 100, 5,5,1,1]
+
+# Environment Parameters
+config = {
+    "observation": {
+        "type": "KinematicsGoal",
+        "features": ["x", "y", "vx", "vy", "cos_h", "sin_h"],
+        "scales": REWARD_WEIGHTS,
+        "normalize": True,
+    },
+    'other_vehicles_type': 'parked',
+    'screen_width': SCREEN_WIDTH,
+    'screen_height': SCREEN_HEIGHT,
+    'vehicles_count': PARKED_CARS,
+    # 'reward_weights': REWARD_WEIGHTS
+}
+
+
+if __name__ == "__main__":
+    n_cpu = 8
+    batch_size = 64
+    n_steps = batch_size * 30
+    timesteps = 2000000
+    
+    #env = gym.make("parking-v0")
+
+    if TRAIN:
+        env = make_vec_env("parking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
+        model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
+                learning_rate=1e-3, n_epochs=20, gamma=0.8)
+    
+        # Train the model
+        model.learn(total_timesteps=timesteps)
+        model.save("parking_policy/model")
+        del model
+
+    else:
+        # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
+        
+        # Load the trained model
+        def evaluate_model(model, env, num_episodes=10, render=False, record_limit=100):
+            rewards = []
+            successes = 0
+            for ep in range(num_episodes):
+                obs, info = env.reset()
+                done = False
+                total_reward = 0
+                t = 0
+                frames = []
+                while not done and t < record_limit:
+                    t += 1
+                    action, _states = model.predict(obs)
+                    obs, reward, terminated, truncated, info = env.step(action)
+                    done = terminated
+                    total_reward += reward
+                    if render:
+                        frame = env.render()
+                        frames.append(frame)
+                rewards.append(total_reward)
+
+                if info["is_success"]:
+                    successes += 1
+                if render and frames:
+                    gif_filename = f"../res/parking_eval_ep{ep+1}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.gif"
+                    imageio.mimsave(gif_filename, frames, fps=30)
+                    print(f"Episode {ep+1} GIF saved to {gif_filename}")
+                avg_reward = sum(rewards) / len(rewards)
+            success_rate = successes / num_episodes * 100
+            print(f"Average reward over {num_episodes} episodes: {avg_reward}")
+            print(f"Success rate: {success_rate:.2f}% ({successes}/{num_episodes})")
+
+        rm = "rgb_array"
+        model = PPO.load("parking_policy/model")
+        env = gym.make("parking-v0", config=config, render_mode=rm)
+
+        if RECORD:
+            evaluate_model(model, env, num_episodes=EPISODE_RECORD_LIMIT, render=True, record_limit=RECORD_LIMIT)
+        else:
+            evaluate_model(model, env, num_episodes=10, render=False)

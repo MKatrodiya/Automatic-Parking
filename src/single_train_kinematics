@@ -1,0 +1,157 @@
+import os
+import gymnasium as gym
+import numpy as np
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
+from highway_env.envs.parking_env import ParkingEnv
+from highway_env.envs.common.abstract import Observation
+
+# -----------------------------
+# 1. Custom Observation Class
+# -----------------------------
+class KinematicsGoalWithNeighborsObservation(Observation):
+    """Flat vector = [vehicles (x,y,vx,vy,cosθ,sinθ) … | goal (x,y,vx,vy,cosθ,sinθ)]."""
+
+    def __init__(self, env, config=None):
+        super().__init__(env, config)
+        self.features = config.get("features", ["x", "y", "vx", "vy", "cos_h", "sin_h"])
+        self.scales = np.asarray(config.get("scales", [100, 100, 5, 5, 1, 1]), dtype=np.float32)
+        self.normalize = config.get("normalize", True)
+        self.vehicles_count = int(config.get("vehicles_count", 5))
+
+    # –– helpers ––
+    def _extract(self, vehicle):
+        # Use 0 velocity for static objects (road goal)
+        vx, vy = (getattr(vehicle, "velocity", np.zeros(2)))[:2]
+        return [vehicle.position[0], vehicle.position[1], vx, vy,
+                np.cos(vehicle.heading), np.sin(vehicle.heading)]
+
+    # –– main API ––
+    def observe(self):
+        # 1. Ego + closest parked cars (already sorted by distance in highway‑env)
+        vehicles = self.env.road.vehicles[: self.vehicles_count]
+        vec = []
+        for v in vehicles:
+            vec.extend(self._extract(v))
+
+        # 2. Goal pose (first RoadObject) – acts like a pseudo‑vehicle
+        goal_obj = self.env.road.objects[0]
+        vec.extend(self._extract(goal_obj))
+
+        obs = np.asarray(vec, dtype=np.float32)
+        if self.normalize:
+            obs = obs / np.tile(self.scales, len(obs) // len(self.scales))
+        return obs
+
+    def space(self):
+        dim = (self.vehicles_count + 1) * len(self.features)
+        return gym.spaces.Box(low=-np.inf, high=np.inf, shape=(dim,), dtype=np.float32)
+
+
+# -----------------------------
+# 2. Custom Parking Environment
+# -----------------------------
+class CustomParkingEnv(ParkingEnv):
+    """Plug custom observation into stock ParkingEnv."""
+
+    def configure(self, config):
+        super().configure(config)
+        # Replace observation handler with ours
+        self.observation_type = KinematicsGoalWithNeighborsObservation(self, config["observation"])
+        # Regenerate Gym spaces to match new observation
+        self.define_spaces()
+
+
+# -----------------------------
+# 3. Config Helper
+# -----------------------------
+PARKED_CARS = 10  # number of static obstacles
+
+BASE_CONFIG = {
+    "observation": {
+        "type": KinematicsGoalWithNeighborsObservation,
+        "vehicles_count": 1 + PARKED_CARS,   # ego + parked
+        "features": ["x", "y", "vx", "vy", "cos_h", "sin_h"],
+        "scales":   [100, 100, 5, 5, 1, 1],
+        "normalize": True,
+    },
+    "action": {"type": "ContinuousAction"},
+    "collision_reward": -10.0,
+    "parking_reward": 1.0,
+    "duration": 50,
+}
+
+MODEL_PATH = "ppo_custom_parking.zip"
+
+
+# -----------------------------
+# 4. Training Routine
+# -----------------------------
+
+def train(total_steps: int = 300_000):
+    env = CustomParkingEnv()
+    env.configure(BASE_CONFIG)
+
+    vec_env = DummyVecEnv([lambda: env])
+    vec_env = VecMonitor(vec_env)
+
+    model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log="tb_parking")
+    model.learn(total_timesteps=total_steps)
+    model.save(MODEL_PATH)
+    vec_env.close()
+    print(f"\n✅ Trained and saved to {MODEL_PATH}\n")
+
+
+# -----------------------------
+# 5. Evaluation & Visualization
+# -----------------------------
+
+def evaluate(episodes: int = 5, render_mode="human"):
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError("Train first or provide a valid model path.")
+
+    # For live rendering use "human", for headless GIF recording use "rgb_array"
+    env = CustomParkingEnv(render_mode=render_mode)
+    env.configure(BASE_CONFIG)
+
+    model = PPO.load(MODEL_PATH, env=env)
+
+    successes = 0
+    for ep in range(episodes):
+        obs, _ = env.reset()
+        done = truncated = False
+        ep_reward = 0.0
+        frames = []
+        while not (done or truncated):
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, done, truncated, info = env.step(action)
+            ep_reward += reward
+            if render_mode == "rgb_array":
+                frames.append(env.render())
+        successes += info.get("is_success", False)
+        print(f"Episode {ep+1}: reward={ep_reward:.2f}  success={info.get('is_success', False)}")
+
+        # Optional: save GIF
+        # if render_mode == "rgb_array":
+        #     import imageio
+        #     imageio.mimsave(f"run_{ep+1}.gif", frames, fps=15)
+
+    env.close()
+    print(f"\nSuccess rate: {successes}/{episodes}\n")
+
+
+# -------------------------------------------------------------
+# 6. CLI Entry – train or evaluate based on argument
+# -------------------------------------------------------------
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="PPO Parking – train or evaluate")
+    parser.add_argument("mode", choices=["train", "eval"], help="What to do: train or eval")
+    parser.add_argument("--steps", type=int, default=300_000, help="Timesteps for training")
+    parser.add_argument("--episodes", type=int, default=5, help="Episodes for evaluation")
+    args = parser.parse_args()
+
+    if args.mode == "train":
+        train(total_steps=args.steps)
+    else:
+        evaluate(episodes=args.episodes)
