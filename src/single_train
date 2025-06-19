@@ -4,29 +4,31 @@ import highway_env
 from highway_env.envs import ParkingEnv
 import imageio
 import parking_obstacles
-
+import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 import datetime
+import csv
 
 
 # Training and recording parameters
-TRAIN = False
-RECORD = True
+TRAIN = True
+RECORD = False
 RECORD_LIMIT = 300 # Frames to record in the video
 EPISODE_RECORD_LIMIT = 10
+previous_model_path = None # Path to a previously trained model to continue
 
 # Environment Parameters
-PARKED_CARS = 5
+PARKED_CARS = 26
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-COLLISION_PENALTY = -10
-REWARD_WEIGHTS = [100, 100, 5,5,1,1]
-ACTION_FREQUENCY = 15 #(Hz) How many times per second an action is taken
-SIMULATION_FREQUENCY = 15 #(Hz) How many times per second the simulation is updated, for physics and rendering
-
-
+COLLISION_REWARD = -15
+REWARD_WEIGHTS = [1, 0.3, 0.00, 0.00, 0.03, 0.03]
+STEERING_RANGE = np.deg2rad(45)
+ACTION_FREQUENCY = 20 #(Hz) How many times per second an action is taken
+SIMULATION_FREQUENCY = 20 #(Hz) How many times per second the simulation is updated, for physics and rendering
+REWARD_THRESHOLD = 0.10
 
 
 # Environment Parameters
@@ -37,24 +39,39 @@ config = {
     'vehicles_count': PARKED_CARS,
     'policy_frequency': ACTION_FREQUENCY,
     'simulation_frequency': SIMULATION_FREQUENCY,
-    # 'reward_weights': REWARD_WEIGHTS
+    'reward_weights': REWARD_WEIGHTS,
+    'success_goal_reward': REWARD_THRESHOLD,
+    'collision_reward': COLLISION_REWARD,
+    'steering_range': STEERING_RANGE,
 }
-
 
 
 if __name__ == "__main__":
     n_cpu = 8
     batch_size = 64
     n_steps = batch_size * 30
-    timesteps = 10000
+    timesteps = 2000000
+    
     
     #env = gym.make("parking-v0")
 
     if TRAIN:
-        env = make_vec_env("customparking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
+        env = make_vec_env("parking-v0", n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
-                learning_rate=1e-3, n_epochs=5, gamma=0.95, device="cpu", ent_coef=0.05)
-    
+                learning_rate=1e-3, n_epochs=5, gamma=0.95, device="cpu", ent_coef=0.05, 
+                tensorboard_log=f"logs/parking_policy/{timestamp}/")
+        
+        # Save the config to a CSV file
+        with open(f"logs/parking_policy/{timestamp}/params.csv", "w") as f:
+            writer = csv.writer(f)
+            writer.writerows(config.items())
+               
+        if previous_model_path:
+            # Load a previously trained model to continue training
+            model = PPO.load(previous_model_path, env=env)
+            print(f"Loaded model from {previous_model_path}")
+
         # Train the model
         model.learn(total_timesteps=timesteps)
         model.save("parking_policy/model")
@@ -64,10 +81,11 @@ if __name__ == "__main__":
         # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
         
         # Load the trained model
-        parking_obstacles.register_env()
+        # parking_obstacles.register_env()
         rm = "rgb_array"
-        model = PPO.load("parking_policy/model4")
-        env = gym.make("customparking-v0", config=config, render_mode=rm)
+        model = PPO.load("parking_policy/model")
+        model.tensorboard_log = None
+        env = gym.make("parking-v0", config=config, render_mode=rm)
         print(model.policy)
 
         env.reset()
@@ -87,11 +105,10 @@ if __name__ == "__main__":
                 action, _states = model.predict(obs)
                 obs, reward, terminated, truncated, info = env.step(action)
                 done = terminated
-                # print(f"Total Reward: {reward}")
                 print(f"Step: {t}, Total Reward: {reward}")
                 frame = env.render()
                 if RECORD:
                     frames.append(frame)
         if RECORD:
-            imageio.mimsave(gif_filename, frames, fps=20)
+            imageio.mimsave(gif_filename, frames, fps=SIMULATION_FREQUENCY)
             print(f"GIF saved to {gif_filename}")
