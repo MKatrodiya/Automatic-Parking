@@ -1,1 +1,6 @@
 highway-env
+tqdm
+numpy
+matplotlib
+scikit-learn
+rich

@@ -9,14 +9,13 @@ import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.utils import linear_schedule
 import datetime
 import csv
 import os
 
 
 # Training and recording parameters
-TRAIN = False
+TRAIN = True
 RECORD = True
 RECORD_LIMIT = 1000 # Frames to record in the video
 EPISODE_RECORD_LIMIT = 10
@@ -59,6 +58,11 @@ config = {
 }
 
 
+def linear_schedule(initial_value):
+    def schedule(progress_remaining: float):
+        return progress_remaining * initial_value
+    return schedule
+
 if __name__ == "__main__":
     n_envs = 8
     batch_size = 256
@@ -95,7 +99,7 @@ if __name__ == "__main__":
         #     print(f"Loaded model from {previous_model_path}")
 
         # Train the model
-        model.learn(total_timesteps=timesteps, progress_bar=True)
+        model.learn(total_timesteps=timesteps, progress_bar=True, tb_log_name=timestamp)
         model.save("parking_policy/model")
         model.save(f"logs/parking_policy/{timestamp}/model")
         del model
