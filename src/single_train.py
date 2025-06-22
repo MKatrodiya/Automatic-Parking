@@ -109,6 +109,7 @@ if __name__ == "__main__":
         rm = "rgb_array"
         model = PPO.load("parking_policy/model")
         model.tensorboard_log = None
+        env = gym.make("CustomParking-v0", config=config, render_mode=rm)
         
         # print(model.policy)
 
@@ -127,7 +128,7 @@ if __name__ == "__main__":
             
             while not done and t < RECORD_LIMIT:
                 t += 1
-                action, _states = model.predict(obs)
+                action, _states = model.predict(obs, deterministic=True)
                 obs, reward, terminated, truncated, info = env.step(action)
                 done = terminated
                 # print(f"Step: {t}, Total Reward: {reward}")
