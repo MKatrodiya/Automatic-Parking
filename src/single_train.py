@@ -15,10 +15,10 @@ import os
 
 
 # Training and recording parameters
-TRAIN = True
+TRAIN = False
 RECORD = True
 RECORD_LIMIT = 1000 # Frames to record in the video
-EPISODE_RECORD_LIMIT = 10
+EPISODE_RECORD_LIMIT = 100
 previous_model_path = 'parking_policy/model' # Path to a previously trained model to continue
 
 # Environment Parameters
@@ -67,14 +67,15 @@ if __name__ == "__main__":
     n_envs = 8
     batch_size = 256
     n_steps = 256
-    timesteps = 1e6
-    learning_rate = linear_schedule(5e-4)
+    timesteps = 5e6
+    learning_rate = 1e-3
     n_epochs = 10
     gamma = 0.95
     policy_kwargs = dict(
         net_arch=[256, 256],
         activation_fn=torch.nn.Tanh
     )
+    target_kl = 0.03
 
 
     #env = gym.make("parking-v0")
@@ -84,7 +85,7 @@ if __name__ == "__main__":
         env = make_vec_env(lambda: custom_parking_env.CustomParkingEnv(config=config), n_envs = n_envs, vec_env_cls=SubprocVecEnv)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
-                learning_rate=learning_rate, n_epochs=n_epochs, gamma=gamma, device="cpu", policy_kwargs=policy_kwargs,
+                learning_rate=learning_rate, n_epochs=n_epochs, gamma=gamma, target_kl=target_kl, device="cpu", policy_kwargs=policy_kwargs,
                 tensorboard_log=f"logs/parking_policy/{timestamp}/")
         
         # Save the config to a CSV file
@@ -104,10 +105,40 @@ if __name__ == "__main__":
         model.save(f"logs/parking_policy/{timestamp}/model")
         del model
 
-    else:
-        # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
-        
-        
+    else:        
+        def evaluate_model(model, env, num_episodes=10, render=False, record_limit=100, deterministic=True):
+            rewards = []
+            successes = 0
+            for ep in range(num_episodes):
+                obs, info = env.reset()
+                done = False
+                total_reward = 0
+                t = 0
+                frames = []
+                while not done and t < record_limit:
+                    t += 1
+                    action, _states = model.predict(obs, deterministic=deterministic)
+                    obs, reward, terminated, truncated, info = env.step(action)
+                    done = terminated
+                    total_reward += reward
+                    if render:
+                        frame = env.render()
+                        frames.append(frame)
+                rewards.append(total_reward)
+
+                if info["is_success"]:
+                    successes += 1
+                if render and frames:
+                    gif_filename = f"../res/parking_eval_ep{ep+1}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.gif"
+                    path = os.path.dirname(gif_filename)
+                    os.makedirs(path, exist_ok=True)
+                    imageio.mimsave(gif_filename, frames, fps=30)
+                    print(f"Episode {ep+1} GIF saved to {gif_filename}")
+                avg_reward = sum(rewards) / len(rewards)
+            success_rate = successes / num_episodes * 100
+            print(f"Average reward over {num_episodes} episodes: {avg_reward}")
+            print(f"Success rate: {success_rate:.2f}% ({successes}/{num_episodes})")
+
         # Load the trained model
         # parking_obstacles.register_env()
         rm = "rgb_array"
@@ -117,28 +148,4 @@ if __name__ == "__main__":
         
         # print(model.policy)
 
-        env.reset()
-        
-        env.render()
-        frames = []
-        gif_filename = f"parking_run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.gif"
-        t = 0
-        e = 0
-        while True and t < RECORD_LIMIT and e < EPISODE_RECORD_LIMIT:
-            e += 1
-            obs, info= env.reset()
-            done = False
-            total_reward = 0
-            
-            while not done and t < RECORD_LIMIT:
-                t += 1
-                action, _states = model.predict(obs, deterministic=True)
-                obs, reward, terminated, truncated, info = env.step(action)
-                done = terminated
-                # print(f"Step: {t}, Total Reward: {reward}")
-                frame = env.render()
-                if RECORD:
-                    frames.append(frame)
-        if RECORD:
-            imageio.mimsave(gif_filename, frames, fps=SIMULATION_FREQUENCY)
-            print(f"GIF saved to {gif_filename}")
+        evaluate_model(model, env, num_episodes=EPISODE_RECORD_LIMIT, render=RECORD, record_limit=RECORD_LIMIT, deterministic=True)
