@@ -25,8 +25,7 @@ previous_model_path = 'parking_policy/model' # Path to a previously trained mode
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 COLLISION_REWARD = -5
-REWARD_WEIGHTS = [1, 0.3, 0.00, 0.00, 0.02, 0.02]
-# REWARD_WEIGHTS = [3, 3, 0.01, 0.01, 0.2, 0.2]
+REWARD_WEIGHTS = [1.0, 0.3, 0.0, 0.0, 0.00, 0.00]
 STEERING_RANGE = np.deg2rad(45)
 ACTION_FREQUENCY = 5 #(Hz) How many times per second an action is taken
 SIMULATION_FREQUENCY = 15 #(Hz) How many times per second the simulation is updated, for physics and rendering
@@ -67,12 +66,12 @@ if __name__ == "__main__":
     n_envs = 8
     batch_size = 256
     n_steps = 256
-    timesteps = 5e6
+    timesteps = 3e6
     learning_rate = 1e-3
     n_epochs = 10
     gamma = 0.95
     policy_kwargs = dict(
-        net_arch=[256, 256],
+        net_arch=[128, 128],
         activation_fn=torch.nn.Tanh
     )
     target_kl = 0.03
@@ -81,7 +80,6 @@ if __name__ == "__main__":
     #env = gym.make("parking-v0")
 
     if TRAIN:
-        # env = gym.make("parking-v0", config=config, render_mode=None)
         env = make_vec_env(lambda: custom_parking_env.CustomParkingEnv(config=config), n_envs = n_envs, vec_env_cls=SubprocVecEnv)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
