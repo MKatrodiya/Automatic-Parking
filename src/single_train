@@ -11,11 +11,12 @@ from stable_baselines3.common.env_util import make_vec_env
 import datetime
 import csv
 import os
+from evaluation import evaluate_model
 
 
 # Training and recording parameters
 TRAIN = False
-RECORD = True
+RECORD = False
 RECORD_LIMIT = 1000 # Frames to record in the video
 EPISODE_RECORD_LIMIT = 10
 previous_model_path = 'parking_policy/model' # Path to a previously trained model to continue
@@ -94,6 +95,7 @@ if __name__ == "__main__":
     else:
         # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
         
+        
         # Load the trained model
         # parking_obstacles.register_env()
         rm = "rgb_array"
@@ -101,6 +103,9 @@ if __name__ == "__main__":
         model.tensorboard_log = None
         env = gym.make("parking-v0", config=config, render_mode=rm)
         print(model.policy)
+        deterministic = True
+        evaluate_model(model, env, num_episodes=1000, render=False, record_limit=RECORD_LIMIT, deterministic=deterministic)
+        exit()
 
         env.reset()
         
@@ -117,7 +122,7 @@ if __name__ == "__main__":
             
             while not done and t < RECORD_LIMIT:
                 t += 1
-                action, _states = model.predict(obs)
+                action, _states = model.predict(obs, deterministic=deterministic)
                 obs, reward, terminated, truncated, info = env.step(action)
                 done = terminated
                 # print(f"Step: {t}, Total Reward: {reward}")
