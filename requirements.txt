@@ -4,3 +4,8 @@ numpy
 matplotlib
 scikit-learn
 rich
+pandas
+gymnasium
+stable-baselines3
+torch
+seaborn

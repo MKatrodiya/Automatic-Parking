@@ -1,3 +1,4 @@
+import glob
 import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 import highway_env
@@ -9,13 +10,15 @@ import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.monitor import Monitor
 import datetime
 import csv
 import os
+from plotting import generate_plots
 
 
 # Training and recording parameters
-TRAIN = False
+TRAIN = True
 RECORD = True
 RECORD_LIMIT = 1000 # Frames to record in the video
 EPISODE_RECORD_LIMIT = 100
@@ -66,7 +69,7 @@ if __name__ == "__main__":
     n_envs = 8
     batch_size = 256
     n_steps = 256
-    timesteps = 3e6
+    timesteps = 1e5
     learning_rate = 1e-3
     n_epochs = 10
     gamma = 0.95
@@ -79,9 +82,16 @@ if __name__ == "__main__":
 
     #env = gym.make("parking-v0")
 
+    def make_env(config, timestamp, rank=0):
+        def _init():
+            env = custom_parking_env.CustomParkingEnv(config=config)
+            monitor_path = f"logs/parking_policy/{timestamp}/monitor_{rank}.csv"
+            return Monitor(env, filename=monitor_path)
+        return _init
+
     if TRAIN:
-        env = make_vec_env(lambda: custom_parking_env.CustomParkingEnv(config=config), n_envs = n_envs, vec_env_cls=SubprocVecEnv)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        env = SubprocVecEnv([make_env(config, timestamp, rank=i) for i in range(n_envs)])
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
                 learning_rate=learning_rate, n_epochs=n_epochs, gamma=gamma, target_kl=target_kl, device="cpu", policy_kwargs=policy_kwargs,
                 tensorboard_log=f"logs/parking_policy/{timestamp}/")
@@ -102,6 +112,8 @@ if __name__ == "__main__":
         model.save("parking_policy/model")
         model.save(f"logs/parking_policy/{timestamp}/model")
         del model
+
+        generate_plots("logs/parking_policy")
 
     else:        
         def evaluate_model(model, env, num_episodes=10, render=False, record_limit=100, deterministic=True):
