@@ -1,0 +1,14 @@
+comment,Multi-agent reward function
+other_vehicles_type,parked
+screen_width,800
+screen_height,600
+vehicles_count,21
+controlled_vehicles,2
+policy_frequency,5
+simulation_frequency,15
+reward_weights,"[5, 5, 0.0, 0.0, 0.0, 0.0]"
+success_goal_reward,10
+collision_reward,-5
+steering_range,0.7853981633974483
+add_walls,True
+static_vehicles,"[0, 1, 2, 5, 6, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 21, 23, 24, 25, 26, 27]"
