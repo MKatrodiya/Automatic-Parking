@@ -26,54 +26,55 @@ def generate_plots(log_root):
     ]
 
     dfs = []
-    for file in monitor_files:
+    for idx, file in enumerate(monitor_files):
         try:
-            df = pd.read_csv(file, skiprows=1)  # skip Gym metadata
+            df = pd.read_csv(file, skiprows=1)  # skip Gym Monitor metadata
+            df["env_id"] = idx
             dfs.append(df)
         except Exception as e:
-            print(f"Could not read {file}: {e}")
+            print(f"❌ Could not read {file}: {e}")
 
     if not dfs:
         raise RuntimeError("No monitor.csv files found.")
 
     df = pd.concat(dfs, ignore_index=True)
+    # Sort by time for all parallel environments
     df = df.sort_values(by="t").reset_index(drop=True)
 
-    # Reward based on sliding window
+    # Rolling reward for smoother visualization
     df["rolling_reward"] = df["r"].rolling(window=50).mean()
 
+    # Set seaborn style
     sns.set_theme(style="darkgrid")
 
-    # Create plots
+    # Rolling Reward over Environment Time
     plt.figure(figsize=(10, 5))
-    sns.lineplot(data=df, y="rolling_reward", x=range(len(df)))
-    plt.title("Rolling Reward (window=50)")
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
+    sns.lineplot(data=df, x="t", y="rolling_reward")
+    plt.title("Rolling Reward over Time (window=50)")
+    plt.xlabel("Environment Time (s)")
+    plt.ylabel("Average Reward")
+    plt.tight_layout()
     plt.savefig(os.path.join(log_dir, "rolling_reward.png"))
     plt.close()
 
-    plt.figure(figsize=(8, 4))
-    plt.hist(df["l"], bins=30, color="skyblue", edgecolor="black")
-    plt.title("Episode Length Distribution")
-    plt.xlabel("Length")
-    plt.ylabel("Count")
-    plt.savefig(os.path.join(log_dir, "episode_length_hist.png"))
+    # Rolling Episode Length Over Time
+    plt.figure(figsize=(10, 5))
+    df["rolling_length"] = df["l"].rolling(window=50).mean()
+    sns.lineplot(data=df, x="t", y="rolling_length")
+    plt.title("Rolling Episode Length Over Time (window=50)")
+    plt.xlabel("Environment Time (s)")
+    plt.ylabel("Average Episode Length")
+    plt.tight_layout()
+    plt.savefig(os.path.join(log_dir, "rolling_episode_length_over_time_smoothed.png"))
     plt.close()
 
-    plt.figure(figsize=(8, 4))
-    plt.hist(df["r"], bins=30, color="salmon", edgecolor="black")
-    plt.title("Reward Distribution")
-    plt.xlabel("Reward")
-    plt.ylabel("Frequency")
-    plt.savefig(os.path.join(log_dir, "reward_distribution.png"))
-    plt.close()
-
+    # Reward vs Episode Length
     plt.figure(figsize=(8, 5))
     plt.scatter(df["l"], df["r"], alpha=0.5, c="teal")
     plt.title("Reward vs Episode Length")
     plt.xlabel("Episode Length")
     plt.ylabel("Reward")
+    plt.tight_layout()
     plt.savefig(os.path.join(log_dir, "reward_vs_length.png"))
     plt.close()
 

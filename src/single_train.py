@@ -18,17 +18,17 @@ from plotting import generate_plots
 
 
 # Training and recording parameters
-TRAIN = True
-RECORD = True
+TRAIN = False
+RECORD = False
 RECORD_LIMIT = 1000 # Frames to record in the video
-EPISODE_RECORD_LIMIT = 100
+EPISODE_RECORD_LIMIT = 10
 previous_model_path = 'parking_policy/model' # Path to a previously trained model to continue
 
 # Environment Parameters
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 COLLISION_REWARD = -5
-REWARD_WEIGHTS = [1.0, 0.3, 0.0, 0.0, 0.00, 0.00]
+REWARD_WEIGHTS = [1, 0.3, 0.00, 0.00, 0.02, 0.02]
 STEERING_RANGE = np.deg2rad(45)
 ACTION_FREQUENCY = 5 #(Hz) How many times per second an action is taken
 SIMULATION_FREQUENCY = 15 #(Hz) How many times per second the simulation is updated, for physics and rendering
@@ -67,17 +67,12 @@ def linear_schedule(initial_value):
 
 if __name__ == "__main__":
     n_envs = 8
-    batch_size = 256
-    n_steps = 256
-    timesteps = 1e5
+    batch_size = 64
+    n_steps = batch_size * 30
+    timesteps = 5000000
     learning_rate = 1e-3
-    n_epochs = 10
+    n_epochs = 5
     gamma = 0.95
-    policy_kwargs = dict(
-        net_arch=[128, 128],
-        activation_fn=torch.nn.Tanh
-    )
-    target_kl = 0.03
 
 
     #env = gym.make("parking-v0")
@@ -93,7 +88,7 @@ if __name__ == "__main__":
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         env = SubprocVecEnv([make_env(config, timestamp, rank=i) for i in range(n_envs)])
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
-                learning_rate=learning_rate, n_epochs=n_epochs, gamma=gamma, target_kl=target_kl, device="cpu", policy_kwargs=policy_kwargs,
+                learning_rate=learning_rate, n_epochs=n_epochs, gamma=gamma, device="cpu", ent_coef=0.005,
                 tensorboard_log=f"logs/parking_policy/{timestamp}/")
         
         # Save the config to a CSV file
@@ -158,4 +153,4 @@ if __name__ == "__main__":
         
         # print(model.policy)
 
-        evaluate_model(model, env, num_episodes=EPISODE_RECORD_LIMIT, render=RECORD, record_limit=RECORD_LIMIT, deterministic=True)
+        evaluate_model(model, env, num_episodes=1000, render=RECORD, record_limit=RECORD_LIMIT, deterministic=True)
