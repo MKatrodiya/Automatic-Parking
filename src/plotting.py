@@ -32,7 +32,7 @@ def generate_plots(log_root):
             df["env_id"] = idx
             dfs.append(df)
         except Exception as e:
-            print(f"❌ Could not read {file}: {e}")
+            print(f"Could not read {file}: {e}")
 
     if not dfs:
         raise RuntimeError("No monitor.csv files found.")
