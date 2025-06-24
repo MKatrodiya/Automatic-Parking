@@ -45,7 +45,7 @@ def generate_plots(log_root):
     df["rolling_reward"] = df["r"].rolling(window=50).mean()
 
     # Set seaborn style
-    sns.set_theme(style="darkgrid")
+    sns.set_theme(style="whitegrid")
 
     # Rolling Reward over Environment Time
     plt.figure(figsize=(10, 5))
