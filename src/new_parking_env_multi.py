@@ -45,7 +45,7 @@ class ParkingEnv(AbstractEnv):
         width = 4.0
         lt = (LineType.CONTINUOUS, LineType.CONTINUOUS)
         x_offset = 0
-        y_offset = 10
+        y_offset = 16 # wider for more vehicles 
         length = 8
         for k in range(spots):
             x = (k + 1 - spots // 2) * (width + x_offset) - width / 2
@@ -97,7 +97,7 @@ class ParkingEnv(AbstractEnv):
 
         # Walls
         if self.config["add_walls"]:
-            width, height = 70, 42
+            width, height = 70, 60
             for y in [-height / 2, height / 2]:
                 obstacle = Obstacle(self.road, [0, y])
                 obstacle.LENGTH, obstacle.WIDTH = (width, 1)
@@ -108,6 +108,86 @@ class ParkingEnv(AbstractEnv):
                 obstacle.LENGTH, obstacle.WIDTH = (height, 1)
                 obstacle.diagonal = np.sqrt(obstacle.LENGTH ** 2 + obstacle.WIDTH ** 2)
                 self.road.objects.append(obstacle)
+    """def compute_reward(
+            self,
+            achieved_goal: np.ndarray,
+            desired_goal: np.ndarray,
+            info: dict,
+            p: float = 0.5,
+    ) -> float:
+
+        return -np.power(
+            np.dot(
+                np.abs(achieved_goal - desired_goal),
+                np.array(self.config["reward_weights"]),
+            ),
+            p,
+        )"""
+    
+
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+        """
+        Reward is based on how close each agent is to its goal.
+        Includes partial rewards and full success reward.
+
+        achieved_goal: np.ndarray shape = (6 * num_agents,) [x, y, v_x, v_y, cos_h, sin_h] for each agent
+        desired_goal: np.ndarray shape = (6 * num_agents,) same structure
+        """
+        reward = 0
+        num_agents = len(self.controlled_vehicles)
+
+        for i in range(num_agents):
+            ag = achieved_goal[i * 6: (i + 1) * 6]
+            dg = desired_goal[i * 6: (i + 1) * 6]
+
+            pos_error = np.linalg.norm(ag[:2] - dg[:2])
+            speed_error = np.linalg.norm(ag[2:4] - dg[2:4])
+            heading_cos_sim = ag[4] * dg[4] + ag[5] * dg[5]
+
+            # Partial reward: encourage getting close to target
+            r = -1.0 * pos_error - 0.1 * speed_error + 2.0 * heading_cos_sim
+
+            # Full success reward if close enough
+            if pos_error < 0.5 and speed_error < 0.2 and heading_cos_sim > 0.95:
+                r += 10.0  # Full success
+
+            reward += r
+
+        # Add collision penalty (non-terminal)
+        for v in self.controlled_vehicles:
+            if v.crashed:
+                reward -= 5.0
+
+        return reward
+    def _reward(self, action: np.ndarray) -> float:
+        obs = self.observation_type.observe()
+
+        # only choose first（multi-agent） achieved_goal  desired_goal
+        if isinstance(obs, tuple):
+            obs = obs[0]
+
+        achieved_goal = obs["achieved_goal"]
+        desired_goal = obs["desired_goal"]
+
+        reward = self.compute_reward(achieved_goal, desired_goal, {})
+        return reward
+
+
+
+    """def _reward(self, action: np.ndarray) -> float:
+        obs = self.observation_type.observe()
+        obs = obs if isinstance(obs, tuple) else (obs,)
+        reward = sum(
+            self.compute_reward(
+                agent_obs["achieved_goal"], agent_obs["desired_goal"], {}
+            )
+            for agent_obs in obs
+        )
+        reward += self.config["collision_reward"] * sum(
+            v.crashed for v in self.controlled_vehicles
+        )
+        return reward"""
 
     """def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict, p: float = 0.5) -> float:
         return -np.power(
@@ -123,7 +203,7 @@ class ParkingEnv(AbstractEnv):
         reward = self.compute_reward(obs["achieved_goal"], obs["desired_goal"], {})
         reward += self.config["collision_reward"] * sum(v.crashed for v in self.controlled_vehicles)
         return reward"""
-    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict) -> float:
+    """def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict) -> float:
         # smooth
         diff = achieved_goal - desired_goal
         weighted_sq_diff = np.dot(diff ** 2, np.array(self.config["reward_weights"]))
@@ -133,7 +213,7 @@ class ParkingEnv(AbstractEnv):
         obs = self.observation_type.observe()
         reward = self.compute_reward(obs["achieved_goal"], obs["desired_goal"], {})
         reward += self.config["collision_reward"] * sum(v.crashed for v in self.controlled_vehicles)
-        return reward
+        return reward"""
 
 
 
