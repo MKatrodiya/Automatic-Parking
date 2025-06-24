@@ -1,17 +1,17 @@
 import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
-import highway_env
-from highway_env.envs import ParkingEnv
 import imageio
-import parking_obstacles
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.monitor import Monitor
 import datetime
 import csv
 import os
+from custom_environment import custom_parking_env
 from evaluation import evaluate_model
+from plotting import generate_plots
 
 
 # Training and recording parameters
@@ -57,20 +57,27 @@ config = {
     'static_vehicles': static_vehicles
 }
 
+def linear_schedule(initial_value):
+    def schedule(progress_remaining: float):
+        return progress_remaining * initial_value
+    return schedule
+
+def make_env(config, timestamp, rank=0):
+    def _init():
+        env = custom_parking_env.CustomParkingEnv(config=config)
+        monitor_path = f"logs/parking_policy/{timestamp}/monitor_{rank}.csv"
+        return Monitor(env, filename=monitor_path)
+    return _init
 
 if __name__ == "__main__":
-    n_cpu = 8
+    n_envs = 8
     batch_size = 64
     n_steps = batch_size * 30
-    timesteps = 5000000
+    timesteps = 20000
     
-    
-    #env = gym.make("parking-v0")
-
     if TRAIN:
-        # env = gym.make("parking-v0", config=config, render_mode=None)
-        env = make_vec_env(lambda: ParkingEnv(config=config), n_envs = n_cpu, vec_env_cls=SubprocVecEnv)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        env = SubprocVecEnv([make_env(config, timestamp, rank=i) for i in range(n_envs)])
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
                 learning_rate=1e-3, n_epochs=5, gamma=0.95, device="cpu", ent_coef=0.005, 
                 tensorboard_log=f"logs/parking_policy/{timestamp}/")
@@ -87,21 +94,19 @@ if __name__ == "__main__":
             print(f"Loaded model from {previous_model_path}")
 
         # Train the model
-        model.learn(total_timesteps=timesteps)
+        model.learn(total_timesteps=timesteps, progress_bar=True, tb_log_name=timestamp)
         model.save("parking_policy/model")
         model.save(f"logs/parking_policy/{timestamp}/model")
         del model
 
-    else:
-        # env = make_vec_env("parking-v0", n_envs = 1, vec_env_cls=SubprocVecEnv)
-        
-        
+        generate_plots("logs/parking_policy")
+
+    else:        
         # Load the trained model
-        # parking_obstacles.register_env()
         rm = "rgb_array"
         model = PPO.load("parking_policy/model")
         model.tensorboard_log = None
-        env = gym.make("parking-v0", config=config, render_mode=rm)
+        env = gym.make("CustomParking-v0", config=config, render_mode=rm)
         print(model.policy)
         deterministic = True
         evaluate_model(model, env, num_episodes=1000, render=False, record_limit=RECORD_LIMIT, deterministic=deterministic)
