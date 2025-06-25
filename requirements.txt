@@ -9,3 +9,4 @@ gymnasium
 stable-baselines3
 torch
 seaborn
+imageio

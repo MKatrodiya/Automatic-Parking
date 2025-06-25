@@ -17,12 +17,10 @@ class CustomParkingEnv(parking_env.ParkingEnv):
         locations = self.config["static_vehicles"]
         valid_spots = [3, 4, 9, 12, 15, 18, 22]
         goal_lane_index = empty_spots[int(np.random.choice(valid_spots))]
-        # print(goal_lane_index)
         goal_lane = self.road.network.get_lane(goal_lane_index)
         filled_spaces_n = 12 # Must be <= 21 
         locations = list(np.random.choice(locations, filled_spaces_n, replace=False))
         locations = sorted(locations, reverse=True)
-        # print(locations)
         for i in range(filled_spaces_n):
             if not empty_spots:
                 continue
@@ -41,22 +39,14 @@ class CustomParkingEnv(parking_env.ParkingEnv):
             vehicle.color = VehicleGraphics.EGO_COLOR
             self.road.vehicles.append(vehicle)
             self.controlled_vehicles.append(vehicle)
-            #vehicle_spot_index = empty_spots.index(vehicle.lane_index)
-            #pp(vehicle_spot_index)
-
-            # empty_spots.remove(vehicle.lane_index)
 
         lane = goal_lane
         # Goal
         for vehicle in self.controlled_vehicles:
-            # lane_index = empty_spots[self.np_random.choice(np.arange(len(empty_spots)))]
-            # lane = self.road.network.get_lane(lane_index)
             vehicle.goal = Landmark(
                 self.road, lane.position(lane.length / 2, 0), heading=lane.heading
             )
             self.road.objects.append(vehicle.goal)
-            # print("goal index: ",lane_index)
-            # empty_spots.remove(lane_index)
 
 
 

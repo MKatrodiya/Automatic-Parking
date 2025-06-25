@@ -3,7 +3,7 @@ import highway_env
 from matplotlib import pyplot as plt
 import pprint
 import time
-# %matplotlib inline
+from custom_environment import custom_parking_env
 
 # vehicle to be controlled by the agent is called ego-vehicle
 config = {
@@ -23,7 +23,7 @@ config = {
     }
 }
 
-env = gymnasium.make('parking-v0', render_mode='rgb_array', config=config)
+env = gymnasium.make("parking-v0", render_mode='rgb_array', config=config)
 obs, reward = env.reset()
 print("Observation space:", env.observation_space)
 print("Action space:", env.action_space)
@@ -37,6 +37,7 @@ for _ in range(10):
     #     "observation": np.array,  # The state of the environment
     #     "achieved_goal": np.array, # The achieved goal of the agent
     #     "desired_goal": np.array,  # The desired goal of the agent
+    # }
 
     observation = obs["observation"]
     # The observation features are: ['x', 'y', 'vx', 'vy', 'cos_h', 'sin_h']
