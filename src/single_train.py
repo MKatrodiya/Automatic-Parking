@@ -15,30 +15,29 @@ from plotting import generate_plots
 
 
 # Training and recording parameters
-TRAIN = False
-RECORD = False
-RECORD_LIMIT = 1000 # Frames to record in the video
-EPISODE_RECORD_LIMIT = 10
+TRAIN = False # Set to True to train the model, False to evaluate
+RECORD = False # Set to True to record the GIF during the evaluation
+RECORD_LIMIT = 1000 # Frames to record in the GIF
+EPISODE_RECORD_LIMIT = 10 # Episodes to record in the GIF
 previous_model_path = 'parking_policy/model' # Path to a previously trained model to continue
 
 # Environment Parameters
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-COLLISION_REWARD = -5
-REWARD_WEIGHTS = [1, 0.3, 0.00, 0.00, 0.02, 0.02]
+COLLISION_REWARD = -5 # Reward for collisions, negative value
+REWARD_WEIGHTS = [1, 0.3, 0.00, 0.00, 0.02, 0.02] # Weights for the reward function components
 # REWARD_WEIGHTS = [3, 3, 0.01, 0.01, 0.2, 0.2]
-STEERING_RANGE = np.deg2rad(45)
+STEERING_RANGE = np.deg2rad(45) # Steering range in radians
 ACTION_FREQUENCY = 5 #(Hz) How many times per second an action is taken
 SIMULATION_FREQUENCY = 15 #(Hz) How many times per second the simulation is updated, for physics and rendering
-REWARD_THRESHOLD = 0.12
-ADD_WALLS = True
-static_vehicles = list(range(28))  # Static vehicles are parked cars, can be a list of lane indices or vehicle objects
+REWARD_THRESHOLD = 0.12 # Reward threshold for success, positive value
+ADD_WALLS = True # Whether to add walls to the environment
+STATIC_VEHICLES = list(range(28))  # Static vehicles are parked cars, can be a list of lane indices or vehicle objects
 free_spaces = [3, 4, 9, 12, 15, 18, 22]
-static_vehicles = [v for v in static_vehicles if v not in free_spaces]
-# filled_spaces_n = 12 # Must be <= 21 
+STATIC_VEHICLES = [v for v in STATIC_VEHICLES if v not in free_spaces]
+# filled_spaces_n = 12 # Must be <= 21
 # static_vehicles = list(np.random.choice(static_vehicles, filled_spaces_n, replace=False))
-# print(f"Static vehicles (parked cars) selected: {static_vehicles}")
-PARKED_CARS = len(static_vehicles) # Number of parked cars based on the static vehicles list
+PARKED_CARS = len(STATIC_VEHICLES) # Number of parked cars based on the static vehicles list
 
 # Environment Parameters
 config = {
@@ -54,15 +53,32 @@ config = {
     'collision_reward': COLLISION_REWARD,
     'steering_range': STEERING_RANGE,
     'add_walls': ADD_WALLS,
-    'static_vehicles': static_vehicles
+    'static_vehicles': STATIC_VEHICLES
 }
 
 def linear_schedule(initial_value):
+    """ Create a linear schedule for the learning rate.
+    The learning rate will decrease linearly from `initial_value` to 0 over the course
+    of training.
+    Args:
+        initial_value: The initial value of the learning rate.
+    Returns:
+        function: A function that takes a progress remaining (between 0 and 1)"""
     def schedule(progress_remaining: float):
         return progress_remaining * initial_value
     return schedule
 
 def make_env(config, timestamp, rank=0):
+    """
+    Create an environment with monitor wrapper to log training data.
+    Args:
+        config (dict): Configuration for the environment.
+        timestamp (str): Timestamp for logging.
+        rank (int): Environment instance rank.
+    Returns:
+        function: A function that initializes the environment.
+    """
+    os.makedirs(f"logs/parking_policy/{timestamp}", exist_ok=True)
     def _init():
         env = custom_parking_env.CustomParkingEnv(config=config)
         monitor_path = f"logs/parking_policy/{timestamp}/monitor_{rank}.csv"
@@ -70,10 +86,10 @@ def make_env(config, timestamp, rank=0):
     return _init
 
 if __name__ == "__main__":
-    n_envs = 8
-    batch_size = 64
-    n_steps = batch_size * 30
-    timesteps = 20000
+    n_envs = 8 # Number of parallel environments
+    batch_size = 64 # Batch size for training
+    n_steps = batch_size * 30  # Number of steps to run in each environment before updating the model
+    timesteps = 5000000  # Total timesteps for training 
     
     if TRAIN:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -99,7 +115,7 @@ if __name__ == "__main__":
         model.save(f"logs/parking_policy/{timestamp}/model")
         del model
 
-        generate_plots("logs/parking_policy")
+        generate_plots("logs/parking_policy") # Generate plots from the training logs
 
     else:        
         # Load the trained model
