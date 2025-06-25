@@ -47,7 +47,7 @@ def make_custom_env():
     return _init
 
 class EvalAndCheckpointCallback(BaseCallback):
-    def __init__(self, eval_env, eval_freq=100, output_dir="plots", verbose=0):
+    def __init__(self, eval_env, eval_freq=100, output_dir="../res/multiagent/plots", verbose=0):
         super().__init__(verbose)
         self.eval_env = eval_env
         self.eval_freq = eval_freq

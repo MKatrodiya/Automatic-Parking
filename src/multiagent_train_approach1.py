@@ -44,7 +44,7 @@ def make_custom_env():
         return env
     return _init
 
-def plot_and_save(rewards, lengths, output_dir="plots"):
+def plot_and_save(rewards, lengths, output_dir="../res/multiagent/plots"):
     os.makedirs(output_dir, exist_ok=True)
     episodes = list(range(1, len(rewards) + 1))
 
