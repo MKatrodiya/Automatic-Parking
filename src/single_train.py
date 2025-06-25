@@ -15,11 +15,12 @@ from plotting import generate_plots
 
 
 # Training and recording parameters
-TRAIN = False # Set to True to train the model, False to evaluate
+TRAIN = True # Set to True to train the model, False to evaluate
 RECORD = False # Set to True to record the GIF during the evaluation
+CONTINUE_TRAINING = False # Set to True to continue training from a previously saved model
 RECORD_LIMIT = 1000 # Frames to record in the GIF
 EPISODE_RECORD_LIMIT = 10 # Episodes to record in the GIF
-previous_model_path = 'parking_policy/model' # Path to a previously trained model to continue
+previous_model_path = '../res/parking_policy/model' # Path to a previously trained model to continue
 
 # Environment Parameters
 SCREEN_WIDTH = 800
@@ -78,10 +79,10 @@ def make_env(config, timestamp, rank=0):
     Returns:
         function: A function that initializes the environment.
     """
-    os.makedirs(f"logs/parking_policy/{timestamp}", exist_ok=True)
+    os.makedirs(f"../res/logs/parking_policy/{timestamp}", exist_ok=True)
     def _init():
         env = custom_parking_env.CustomParkingEnv(config=config)
-        monitor_path = f"logs/parking_policy/{timestamp}/monitor_{rank}.csv"
+        monitor_path = f"../res/logs/parking_policy/{timestamp}/monitor_{rank}.csv"
         return Monitor(env, filename=monitor_path)
     return _init
 
@@ -89,38 +90,38 @@ if __name__ == "__main__":
     n_envs = 8 # Number of parallel environments
     batch_size = 64 # Batch size for training
     n_steps = batch_size * 30  # Number of steps to run in each environment before updating the model
-    timesteps = 5000000  # Total timesteps for training 
+    timesteps = 20000  # Total timesteps for training 
     
     if TRAIN:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         env = SubprocVecEnv([make_env(config, timestamp, rank=i) for i in range(n_envs)])
         model = PPO("MultiInputPolicy", env, verbose=1, batch_size=batch_size, n_steps=n_steps,
                 learning_rate=1e-3, n_epochs=5, gamma=0.95, device="cpu", ent_coef=0.005, 
-                tensorboard_log=f"logs/parking_policy/{timestamp}/")
+                tensorboard_log=f"../res/logs/parking_policy/{timestamp}/")
         
         # Save the config to a CSV file
-        os.makedirs(f"logs/parking_policy/{timestamp}", exist_ok=True)
-        with open(f"logs/parking_policy/{timestamp}/params.csv", "w") as f:
+        os.makedirs(f"../res/logs/parking_policy/{timestamp}", exist_ok=True)
+        with open(f"../res/logs/parking_policy/{timestamp}/params.csv", "w") as f:
             writer = csv.writer(f)
             writer.writerows(config.items())
                
-        if previous_model_path:
+        if CONTINUE_TRAINING and previous_model_path:
             # Load a previously trained model to continue training
             model = PPO.load(previous_model_path, env=env)
             print(f"Loaded model from {previous_model_path}")
 
         # Train the model
         model.learn(total_timesteps=timesteps, progress_bar=True, tb_log_name=timestamp)
-        model.save("parking_policy/model")
-        model.save(f"logs/parking_policy/{timestamp}/model")
+        model.save("../res/parking_policy/model")
+        model.save(f"../res/logs/parking_policy/{timestamp}/model")
         del model
 
-        generate_plots("logs/parking_policy") # Generate plots from the training logs
+        generate_plots("../res/logs/parking_policy") # Generate plots from the training logs
 
     else:        
         # Load the trained model
         rm = "rgb_array"
-        model = PPO.load("parking_policy/model")
+        model = PPO.load("../res/parking_policy/model")
         model.tensorboard_log = None
         env = gym.make("CustomParking-v0", config=config, render_mode=rm)
         print(model.policy)
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         
         env.render()
         frames = []
-        gif_filename = f"parking_run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.gif"
+        gif_filename = f"../res/parking_run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.gif"
         t = 0
         e = 0
         while True and t < RECORD_LIMIT and e < EPISODE_RECORD_LIMIT:
