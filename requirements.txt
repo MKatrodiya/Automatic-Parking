@@ -1,6 +1,6 @@
 highway-env
 tqdm
-numpy
+numpy<2
 matplotlib
 scikit-learn
 rich
