@@ -56,7 +56,7 @@ def evaluate_model(model, env, num_episodes=10, render=False, record_limit=100, 
 if __name__ == "__main__":
     
     # Load the trained model
-    model = PPO.load("parking_policy/model")
+    model = PPO.load("../res/parking_policy/model")
     env = gym.make("CustomParking-v0", config={"some_config_key": "some_config_value"}, render_mode="rgb_array")
 
     # Evaluate the model

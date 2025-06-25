@@ -15,7 +15,7 @@ from plotting import generate_plots
 
 
 # Training and recording parameters
-TRAIN = True # Set to True to train the model, False to evaluate
+TRAIN = False # Set to True to train the model, False to evaluate
 RECORD = False # Set to True to record the GIF during the evaluation
 CONTINUE_TRAINING = False # Set to True to continue training from a previously saved model
 RECORD_LIMIT = 1000 # Frames to record in the GIF
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         env = gym.make("CustomParking-v0", config=config, render_mode=rm)
         print(model.policy)
         deterministic = True
-        evaluate_model(model, env, num_episodes=1000, render=False, record_limit=RECORD_LIMIT, deterministic=deterministic)
+        evaluate_model(model, env, num_episodes=1000, render=RECORD, record_limit=RECORD_LIMIT, deterministic=deterministic)
         exit()
 
         env.reset()
