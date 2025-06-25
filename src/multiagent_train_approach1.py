@@ -1,7 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from new_parking_env_multi import ParkingEnv  # multi-vehicle env with 2 controlled vehicles
+from parking_env_multi import ParkingEnv  # multi-vehicle env with 2 controlled vehicles
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv

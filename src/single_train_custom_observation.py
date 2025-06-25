@@ -7,7 +7,7 @@ Created on Tue Jun 17 22:08:42 2025
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from new_parking_env import ParkingEnv
+from parking_env import ParkingEnv
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
@@ -16,7 +16,7 @@ import datetime
 import imageio
 
 # new parking environment
-from new_parking_env import ParkingEnv
+from parking_env import ParkingEnv
 
 # Training and recording parameters
 TRAIN = False
