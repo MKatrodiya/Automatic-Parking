@@ -23,7 +23,7 @@ config = {
     }
 }
 
-env = gymnasium.make("CustomParking-v0", render_mode='rgb_array', config=config)
+env = gymnasium.make("parking-v0", render_mode='rgb_array', config=config)
 obs, reward = env.reset()
 print("Observation space:", env.observation_space)
 print("Action space:", env.action_space)
