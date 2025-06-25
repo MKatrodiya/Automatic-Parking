@@ -90,7 +90,7 @@ if __name__ == "__main__":
     n_envs = 8 # Number of parallel environments
     batch_size = 64 # Batch size for training
     n_steps = batch_size * 30  # Number of steps to run in each environment before updating the model
-    timesteps = 20000  # Total timesteps for training 
+    timesteps = 5000000  # Total timesteps for training 
     
     if TRAIN:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
