@@ -17,6 +17,16 @@ This project seeks to develop a self-driving parking algo-
 rithm in a simulated environment that is extensible to multi-
 agent collaboration.
 
+## Demo
+
+![Automatic Parking with Deterministic Policy](res/positive_deterministic_example.gif)
+
+*Figure: Example of the trained agent performing automatic parking in the simulation environment with deterministic policy. (success rate: 0.95)*
+
+![Automatic Parking with Stochastic Policy](res/stochastic_example.gif)
+
+*Figure: Example of the trained agent performing automatic parking in the simulation environment with stochastic policy (success rate: 0.92).*
+
 ## Directory Structure
 ```
 📦 
