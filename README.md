@@ -2,11 +2,11 @@
 A simulation-based automatic parking solution using reinforcement learning, applicable to single agent environments.
 
 ## Problem
-Parking in poses unique challenges to drivers, requiring
+Parking presents unique challenges to drivers, requiring
 precise maneuvering in limited space and creativity navigating
 through spaces without strict road guidelines. Automated park-
 ing is mandatory to achieve full end-to-end self driving (FSD)
-but is often viewed as a convenience because a decreased
+but is often viewed as a convenience because of a decreased
 danger level relative to road navigation. The demand for
 improved automatic parking systems will increase alongside
 FSD adoption rates. Automated parking systems also open
@@ -110,7 +110,7 @@ pip install -r requirements.txt
 2. Parking in a space with other moving vehicles
 3. Use observations like LiDAR to detect nearby vehicles
 4. Experiment with different parking lot layouts
-5. Use more realistic simulation environment like CARLS
+5. Use more realistic simulation environment like CARLA
 6. Try other reinforcement learning models
 
 ## Contributing:
