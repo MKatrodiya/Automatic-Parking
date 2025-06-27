@@ -13,9 +13,7 @@ FSD adoption rates. Automated parking systems also open
 the door for collaborative parking agents, in contrast to the
 traditionally competitive nature of parking.
 
-This project seeks to develop a self-driving parking algo-
-rithm in a simulated environment that is extensible to multi-
-agent collaboration.
+This project seeks to develop a self-driving parking algorithm in a simulated environment that is extensible to multi-agent collaboration.
 
 ## Demo
 
